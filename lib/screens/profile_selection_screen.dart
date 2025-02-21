@@ -1,10 +1,12 @@
+// File: lib/screens/profile_selection_screen.dart
+
 import 'package:flutter/material.dart';
 import 'chat_screen.dart';
 
 class ProfileSelectionScreen extends StatefulWidget {
   final String username;
   final String password;
-  final List<String> interests; // Ensuring interests are included
+  final List<String> interests;
 
   const ProfileSelectionScreen({
     super.key,
@@ -22,19 +24,49 @@ class _ProfileSelectionScreenState extends State<ProfileSelectionScreen> {
   String selectedFilter = 'All';
 
   final List<Map<String, dynamic>> profiles = [
-    {'name': 'CoderJohn', 'description': 'Loves coding', 'tags': ['coding', 'tech']},
-    {'name': 'SciGuy', 'description': 'Science enthusiast', 'tags': ['science']},
-    {'name': 'Anonymous123', 'description': 'Here to talk', 'tags': ['mental health', 'support']},
+    {
+      'name': 'MentalHealthPro',
+      'description': 'Licensed therapist, here to support',
+      'tags': ['Mental Health', 'Anxiety & Depression', 'Stress Management']
+    },
+    {
+      'name': 'CareerGuide',
+      'description': 'Career counselor with 5+ years experience',
+      'tags': ['Career & Work', 'Self-Improvement', 'Stress Management']
+    },
+    {
+      'name': 'StudentSupport',
+      'description': 'University counselor, specializing in student issues',
+      'tags': ['Student Life', 'Stress Management', 'General Support']
+    },
+    {
+      'name': 'AICompanion',
+      'description': 'AI-powered chat companion',
+      'tags': ['General Support', 'All Topics', 'AI Chat']
+    }
   ];
 
-  final List<String> filters = ['All', 'coding', 'science', 'mental health', 'support'];
+  final List<String> filters = [
+    'All',
+    'Mental Health',
+    'Anxiety & Depression',
+    'Career & Work',
+    'Relationships',
+    'Self-Improvement',
+    'Student Life',
+    'Family Issues',
+    'LGBTQ+ Support',
+    'Stress Management',
+    'General Support',
+  ];
 
   @override
   Widget build(BuildContext context) {
     List<Map<String, dynamic>> filteredProfiles = profiles.where((profile) {
       bool matchesFilter = selectedFilter == 'All' || profile['tags'].contains(selectedFilter);
-      bool matchesSearch = profile['name']!.toLowerCase().contains(_searchController.text.toLowerCase());
-      return matchesFilter && matchesSearch;
+      bool matchesSearch = profile['name'].toLowerCase().contains(_searchController.text.toLowerCase());
+      bool matchesInterests = widget.interests.any((interest) => profile['tags'].contains(interest));
+      return matchesFilter && matchesSearch && matchesInterests;
     }).toList();
 
     return Scaffold(
@@ -49,7 +81,7 @@ class _ProfileSelectionScreenState extends State<ProfileSelectionScreen> {
                 labelText: 'Search profiles',
                 prefixIcon: Icon(Icons.search),
               ),
-              onChanged: (value) => setState(() {}), // Update list dynamically
+              onChanged: (value) => setState(() {}),
             ),
           ),
           Padding(
@@ -72,7 +104,25 @@ class _ProfileSelectionScreenState extends State<ProfileSelectionScreen> {
                   margin: const EdgeInsets.all(8.0),
                   child: ListTile(
                     title: Text(profile['name']),
-                    subtitle: Text(profile['description']),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(profile['description']),
+                        const SizedBox(height: 4),
+                        Wrap(
+                          spacing: 4,
+                          children: (profile['tags'] as List<String>)
+                              .map((tag) => Chip(
+                                    label: Text(
+                                      tag,
+                                      style: const TextStyle(fontSize: 12),
+                                    ),
+                                  ))
+                              .toList(),
+                        ),
+                      ],
+                    ),
+                    isThreeLine: true,
                     trailing: const Icon(Icons.arrow_forward),
                     onTap: () {
                       Navigator.push(
@@ -81,6 +131,7 @@ class _ProfileSelectionScreenState extends State<ProfileSelectionScreen> {
                           builder: (context) => ChatScreen(
                             username: widget.username,
                             strangerName: profile['name'],
+                            isAI: profile['name'] == 'AICompanion',
                           ),
                         ),
                       );
