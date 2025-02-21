@@ -56,4 +56,3 @@ class GuidelinesPageState extends State<GuidelinesPage> {
   }
 }
 
-

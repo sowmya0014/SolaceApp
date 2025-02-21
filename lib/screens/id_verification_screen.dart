@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-import 'profile_selection_screen.dart';
+import 'face_recognition_screen.dart';
 
 class IdVerificationScreen extends StatefulWidget {
   final String username;
@@ -103,10 +103,6 @@ class _IdVerificationScreenState extends State<IdVerificationScreen> {
       _isUploading = true;
     });
 
-    // TODO: Implement your actual upload logic here
-    // This is where you would typically send the image to your server
-    // For now, we'll simulate an upload with a delay
-
     try {
       // Simulate upload process
       await Future.delayed(const Duration(seconds: 2));
@@ -126,10 +122,11 @@ class _IdVerificationScreenState extends State<IdVerificationScreen> {
       await Future.delayed(const Duration(seconds: 1));
       
       if (mounted) {
+        // Updated navigation to go to FaceRecognitionScreen
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => ProfileSelectionScreen(
+            builder: (context) => FaceRecognitionScreen(
               username: widget.username,
               password: widget.password,
             ),
