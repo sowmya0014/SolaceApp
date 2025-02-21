@@ -3,9 +3,15 @@ import 'chat_screen.dart';
 
 class ProfileSelectionScreen extends StatefulWidget {
   final String username;
-  final String password; // Added this parameter
+  final String password;
+  final List<String> interests; // Ensuring interests are included
 
-  const ProfileSelectionScreen({super.key, required this.username, required this.password});
+  const ProfileSelectionScreen({
+    super.key,
+    required this.username,
+    required this.password,
+    required this.interests,
+  });
 
   @override
   _ProfileSelectionScreenState createState() => _ProfileSelectionScreenState();
@@ -39,36 +45,47 @@ class _ProfileSelectionScreenState extends State<ProfileSelectionScreen> {
             padding: const EdgeInsets.all(8.0),
             child: TextField(
               controller: _searchController,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: 'Search profiles',
                 prefixIcon: Icon(Icons.search),
               ),
-              onChanged: (value) => setState(() {}),
+              onChanged: (value) => setState(() {}), // Update list dynamically
             ),
           ),
-          DropdownButton<String>(
-            value: selectedFilter,
-            onChanged: (value) => setState(() => selectedFilter = value!),
-            items: filters.map((filter) {
-              return DropdownMenuItem(value: filter, child: Text(filter));
-            }).toList(),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            child: DropdownButton<String>(
+              value: selectedFilter,
+              isExpanded: true,
+              onChanged: (value) => setState(() => selectedFilter = value!),
+              items: filters.map((filter) {
+                return DropdownMenuItem(value: filter, child: Text(filter));
+              }).toList(),
+            ),
           ),
           Expanded(
             child: ListView.builder(
               itemCount: filteredProfiles.length,
               itemBuilder: (context, index) {
                 final profile = filteredProfiles[index];
-                return ListTile(
-                  title: Text(profile['name']),
-                  subtitle: Text(profile['description']),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => ChatScreen(username: widget.username, strangerName: profile['name']),
-                      ),
-                    );
-                  },
+                return Card(
+                  margin: const EdgeInsets.all(8.0),
+                  child: ListTile(
+                    title: Text(profile['name']),
+                    subtitle: Text(profile['description']),
+                    trailing: const Icon(Icons.arrow_forward),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => ChatScreen(
+                            username: widget.username,
+                            strangerName: profile['name'],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
                 );
               },
             ),

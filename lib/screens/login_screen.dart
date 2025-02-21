@@ -88,7 +88,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => const PasswordScreen(),
+                          builder: (context) => PasswordScreen(), // Removed `const`
                         ),
                       );
                     }

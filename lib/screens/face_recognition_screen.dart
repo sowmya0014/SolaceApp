@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-import 'profile_selection_screen.dart';
+import 'interests_screen.dart';
 
 class FaceRecognitionScreen extends StatefulWidget {
   final String username;
@@ -77,7 +77,7 @@ class _FaceRecognitionScreenState extends State<FaceRecognitionScreen> {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => ProfileSelectionScreen(
+            builder: (context) => InterestsScreen(
               username: widget.username,
               password: widget.password,
             ),

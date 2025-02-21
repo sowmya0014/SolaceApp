@@ -4,7 +4,11 @@ class ChatScreen extends StatefulWidget {
   final String username;
   final String strangerName;
 
-  const ChatScreen({super.key, required this.username, required this.strangerName});
+  const ChatScreen({
+    super.key, 
+    required this.username, 
+    required this.strangerName
+  });
 
   @override
   _ChatScreenState createState() => _ChatScreenState();
@@ -12,186 +16,115 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _messageController = TextEditingController();
-  List<Map<String, String>> messages = [];
-  bool isBlocked = false;
+  final List<ChatMessage> _messages = [];
+  bool _isBlocked = false;
 
-  // NLP patterns for personal information detection
-  final Map<String, RegExp> nlpPatterns = {
-    'email': RegExp(
-      r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b',
-      caseSensitive: false,
-    ),
-    'phone': RegExp(
-      r'\b(\+\d{1,3}[\s-.]?)?\(?\d{3}\)?[\s-.]?\d{3}[\s-.]?\d{4}\b',
-    ),
-    'location': RegExp(
-      r'\b(at|in|near|around|close to)\s+([A-Z][a-z]+(\s+[A-Z][a-z]+)*\s*(,\s*[A-Z]{2})?)\b',
-    ),
-    'address': RegExp(
-      r'\b\d+\s+[A-Za-z\s,]+\b(?:\s*,\s*[A-Za-z\s]+)*\s*\d{5}(?:-\d{4})?\b',
-    ),
-    'socialMedia': RegExp(
-      r'\b(instagram|facebook|twitter|linkedin|snapchat|tiktok)\.com\/[A-Za-z0-9_.]+\b',
-      caseSensitive: false,
-    ),
+  // Simplified regex patterns for sensitive information
+  final Map<String, RegExp> _sensitivePatterns = {
+    'Phone Number': RegExp(r'\b\d{10}\b'),
+    'Email': RegExp(r'\b[\w\.-]+@[\w\.-]+\.\w{2,}\b'),
+    'Address': RegExp(r'\b\d{1,5}\s\w+(\s\w+)*\s(street|avenue|road|boulevard|lane|drive)\b', caseSensitive: false),
+    'Social Media': RegExp(r'@\w+'),
+    'Website': RegExp(r'https?://\S+'),
   };
 
-  // Extended NLP context patterns
-  final Map<String, List<String>> contextPatterns = {
-    'location': [
-      'meet', 'live', 'staying', 'located', 'visiting', 'near', 'around',
-      'street', 'avenue', 'road', 'building', 'plaza', 'mall', 'park'
-    ],
-    'contact': [
-      'call', 'text', 'reach', 'contact', 'phone', 'number', 'cell',
-      'mobile', 'telephone', 'whatsapp', 'message me at'
-    ],
-    'address': [
-      'address', 'place', 'apartment', 'house', 'unit', 'floor', 'suite',
-      'building', 'block', 'residence', 'postal', 'zip'
-    ],
-  };
-
-  // ML-based confidence scoring for potential personal information
-  double calculateConfidenceScore(String message, String type) {
-    double score = 0.0;
-    List<String> words = message.toLowerCase().split(' ');
+  // Check for sensitive information
+  List<String> _detectSensitiveInfo(String message) {
+    List<String> detectedTypes = [];
     
-    // Context-based scoring
-    if (contextPatterns.containsKey(type)) {
-      for (String contextWord in contextPatterns[type]!) {
-        if (words.contains(contextWord)) {
-          score += 0.2;
-        }
+    for (var entry in _sensitivePatterns.entries) {
+      if (entry.value.hasMatch(message.toLowerCase())) {
+        detectedTypes.add(entry.key);
       }
     }
-
-    // Pattern-based scoring
-    if (nlpPatterns[type]!.hasMatch(message)) {
-      score += 0.5;
-    }
-
-    // Length and complexity scoring
-    if (message.length > 20) score += 0.1;
-    if (message.contains(RegExp(r'[0-9]'))) score += 0.1;
-    if (message.contains(RegExp(r'[.,]'))) score += 0.1;
-
-    return score.clamp(0.0, 1.0);
-  }
-
-  // Check for potential personal information using NLP
-  Map<String, double> detectPersonalInfo(String message) {
-    Map<String, double> detections = {};
     
-    nlpPatterns.forEach((type, pattern) {
-      double confidence = calculateConfidenceScore(message, type);
-      if (confidence > 0.3) {  // Threshold for detection
-        detections[type] = confidence;
-      }
-    });
-
-    return detections;
+    return detectedTypes;
   }
 
-  // Show consent dialog for potentially sensitive information
-  Future<bool> showConsentDialog(Map<String, double> detections) async {
+  // Show warning dialog for sensitive information
+  Future<bool> _showWarningDialog(List<String> sensitiveTypes) async {
     return await showDialog(
       context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('⚠️ Sensitive Information Detected'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Your message may contain:'),
-              const SizedBox(height: 10),
-              ...detections.entries.map((entry) => Text(
-                '• ${entry.key.toUpperCase()} (${(entry.value * 100).toStringAsFixed(0)}% confidence)',
-                style: const TextStyle(fontWeight: FontWeight.bold),
-              )),
-              const SizedBox(height: 15),
-              const Text(
-                'Sharing personal information is not recommended for your safety. Do you still want to send this message?',
-                style: TextStyle(color: Colors.red),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Edit Message'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-              child: const Text('Send Anyway'),
+      builder: (context) => AlertDialog(
+        title: const Text('⚠️ Warning'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Your message may contain:'),
+            const SizedBox(height: 8),
+            ...sensitiveTypes.map((type) => Padding(
+              padding: const EdgeInsets.only(left: 8),
+              child: Text('• $type', style: const TextStyle(fontWeight: FontWeight.bold)),
+            )),
+            const SizedBox(height: 16),
+            const Text(
+              'Sharing personal information is not recommended. Do you want to proceed?',
+              style: TextStyle(color: Colors.red),
             ),
           ],
-        );
-      },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Edit Message'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Send Anyway'),
+          ),
+        ],
+      ),
     ) ?? false;
   }
 
-  // Function to send messages with NLP checking
-  Future<void> sendMessage() async {
-    String messageText = _messageController.text.trim();
-
-    if (messageText.isNotEmpty && !isBlocked) {
-      // Perform NLP analysis
-      Map<String, double> detections = detectPersonalInfo(messageText);
-
-      if (detections.isNotEmpty) {
-        bool consent = await showConsentDialog(detections);
-        if (!consent) return;
-      }
-
-      setState(() {
-        messages.insert(0, {'sender': widget.username, 'message': messageText});
-        _messageController.clear();
-
-        // Simulate chatbot reply with context awareness
-        Future.delayed(const Duration(seconds: 1), () {
-          if (!isBlocked) {
-            setState(() {
-              messages.insert(0, {
-                'sender': widget.strangerName,
-                'message': getContextAwareReply(messageText, detections)
-              });
-            });
-          }
-        });
-      });
+  // Get automated response based on message content
+  String _getAutomatedResponse(String message) {
+    message = message.toLowerCase();
+    
+    if (message.contains('help') || message.contains('support')) {
+      return "I'm here to help. Can you tell me more about what's troubling you?";
+    } else if (message.contains('sad') || message.contains('depressed')) {
+      return "I hear that you're feeling down. Would you like to talk about what's causing these feelings?";
+    } else if (message.contains('anxious') || message.contains('worried')) {
+      return "It's normal to feel anxious sometimes. Let's discuss what's making you feel this way.";
+    } else if (message.contains('thank')) {
+      return "You're welcome! I'm glad I could help.";
+    } else {
+      return "I understand. Please feel free to share more about your situation.";
     }
   }
 
-  // Enhanced bot replies with context awareness
-  String getContextAwareReply(String message, Map<String, double> detections) {
-    if (detections.isNotEmpty) {
-      return "I notice you're sharing some personal information. While I appreciate your trust, please be cautious about sharing sensitive details in chat. How can I help you while keeping your privacy safe?";
+  // Send message with safety checks
+  Future<void> _sendMessage() async {
+    final messageText = _messageController.text.trim();
+    if (messageText.isEmpty || _isBlocked) return;
+
+    // Check for sensitive information
+    final sensitiveTypes = _detectSensitiveInfo(messageText);
+    if (sensitiveTypes.isNotEmpty) {
+      final shouldSend = await _showWarningDialog(sensitiveTypes);
+      if (!shouldSend) return;
     }
 
-    message = message.toLowerCase();
-    
-    if (message.contains("help") || message.contains("support")) {
-      return "I'm here to support you. What's on your mind?";
-    } else if (message.contains("sad") || message.contains("depressed")) {
-      return "I hear you're going through a difficult time. Would you like to talk about what's troubling you?";
-    } else if (message.contains("angry") || message.contains("frustrated")) {
-      return "It's okay to feel frustrated. Would you like to share what's causing these feelings?";
-    } else if (message.contains("happy") || message.contains("excited")) {
-      return "That's wonderful! I'd love to hear more about what's making you feel this way.";
-    }
+    setState(() {
+      // Add user message
+      _messages.insert(0, ChatMessage(
+        text: messageText,
+        isUser: true,
+        timestamp: DateTime.now(),
+      ));
 
-    List<String> empathicResponses = [
-      "I understand. Please tell me more.",
-      "That's interesting. How does that make you feel?",
-      "I'm here to listen. Would you like to elaborate?",
-      "Thank you for sharing. What else is on your mind?",
-      "I appreciate you opening up. How can I support you?",
-    ];
-    empathicResponses.shuffle();
-    return empathicResponses.first;
+      // Add automated response
+      _messages.insert(0, ChatMessage(
+        text: _getAutomatedResponse(messageText),
+        isUser: false,
+        timestamp: DateTime.now(),
+      ));
+
+      _messageController.clear();
+    });
   }
 
   @override
@@ -201,13 +134,11 @@ class _ChatScreenState extends State<ChatScreen> {
         title: Text('Chat with ${widget.strangerName}'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.block),
-            onPressed: isBlocked ? null : () {
-              setState(() {
-                isBlocked = true;
-              });
+            icon: Icon(_isBlocked ? Icons.block : Icons.block_outlined),
+            onPressed: _isBlocked ? null : () {
+              setState(() => _isBlocked = true);
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('User blocked successfully')),
+                const SnackBar(content: Text('User blocked'))
               );
             },
           ),
@@ -218,52 +149,115 @@ class _ChatScreenState extends State<ChatScreen> {
           Expanded(
             child: ListView.builder(
               reverse: true,
-              itemCount: messages.length,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              itemCount: _messages.length,
               itemBuilder: (context, index) {
-                final message = messages[index];
-                final isUserMessage = message['sender'] == widget.username;
-                return Align(
-                  alignment: isUserMessage ? Alignment.centerRight : Alignment.centerLeft,
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 10),
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: isUserMessage ? Colors.blue : Colors.grey[300],
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Text(
-                      message['message']!,
-                      style: TextStyle(
-                        color: isUserMessage ? Colors.white : Colors.black,
-                      ),
-                    ),
-                  ),
-                );
+                final message = _messages[index];
+                return MessageBubble(message: message);
               },
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _messageController,
-                    decoration: const InputDecoration(
-                      hintText: 'Type a message...',
-                      border: OutlineInputBorder(),
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _messageController,
+                      decoration: InputDecoration(
+                        hintText: _isBlocked ? 'Chat blocked' : 'Type a message...',
+                        border: const OutlineInputBorder(),
+                        enabled: !_isBlocked,
+                      ),
+                      maxLines: null,
+                      textCapitalization: TextCapitalization.sentences,
                     ),
                   ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.send, color: Colors.blue),
-                  onPressed: sendMessage,
-                ),
-              ],
+                  const SizedBox(width: 8),
+                  IconButton(
+                    icon: const Icon(Icons.send),
+                    onPressed: _isBlocked ? null : _sendMessage,
+                    color: Colors.blue,
+                  ),
+                ],
+              ),
             ),
           ),
         ],
       ),
     );
+  }
+}
+
+// Message data model
+class ChatMessage {
+  final String text;
+  final bool isUser;
+  final DateTime timestamp;
+
+  ChatMessage({
+    required this.text,
+    required this.isUser,
+    required this.timestamp,
+  });
+}
+
+// Message bubble widget
+class MessageBubble extends StatelessWidget {
+  final ChatMessage message;
+
+  const MessageBubble({
+    super.key,
+    required this.message,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: message.isUser ? Alignment.centerRight : Alignment.centerLeft,
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: message.isUser ? Colors.blue : Colors.grey[300],
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 2,
+              offset: const Offset(0, 1),
+            ),
+          ],
+        ),
+        constraints: BoxConstraints(
+          maxWidth: MediaQuery.of(context).size.width * 0.75,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              message.text,
+              style: TextStyle(
+                color: message.isUser ? Colors.white : Colors.black,
+                fontSize: 16,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              _formatTime(message.timestamp),
+              style: TextStyle(
+                color: message.isUser ? Colors.white70 : Colors.black54,
+                fontSize: 12,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatTime(DateTime time) {
+    return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
   }
 }
