@@ -40,7 +40,7 @@ class _ProfileSelectionScreenState extends State<ProfileSelectionScreen> {
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                labelText: 'Search Profiles',
+                labelText: 'Search profiles',
                 prefixIcon: Icon(Icons.search),
               ),
               onChanged: (value) => setState(() {}),
