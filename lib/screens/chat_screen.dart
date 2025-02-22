@@ -6,8 +6,8 @@ class ChatScreen extends StatefulWidget {
   final bool isAI;
 
   const ChatScreen({
-    super.key, 
-    required this.username, 
+    super.key,
+    required this.username,
     required this.strangerName,
     this.isAI = false,
   });
@@ -21,20 +21,28 @@ class _ChatScreenState extends State<ChatScreen> {
   List<Map<String, String>> messages = [];
   bool isBlocked = false;
 
-  // Function to check if message contains personal details
-  bool containsPersonalInfo(String message) {
+  // Function to detect personal information
+  Map<String, double> detectPersonalInfo(String message) {
+    Map<String, double> detections = {};
+    
     RegExp phoneRegExp = RegExp(r'\b\d{10,}\b');
     RegExp emailRegExp = RegExp(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,7}\b');
     RegExp addressRegExp = RegExp(r'\b\d{1,5}\s\w+(\s\w+)*\b');
 
-    return phoneRegExp.hasMatch(message) || 
-           emailRegExp.hasMatch(message) || 
-           addressRegExp.hasMatch(message);
+    if (phoneRegExp.hasMatch(message)) detections['Phone Number'] = 0.9;
+    if (emailRegExp.hasMatch(message)) detections['Email'] = 0.95;
+    if (addressRegExp.hasMatch(message)) detections['Address'] = 0.85;
+
+    return detections;
   }
 
-  // Function to generate AI response
-  String _generateAIResponse(String message) {
+  // Function to generate AI response based on context
+  String getContextAwareReply(String message, Map<String, double> detections) {
     message = message.toLowerCase();
+    
+    if (detections.isNotEmpty) {
+      return "Be cautious about sharing personal details online.";
+    }
     
     if (message.contains('anxious') || message.contains('anxiety') || message.contains('worried')) {
       return "I understand you're feeling anxious. Would you like to try some breathing exercises?";
@@ -47,30 +55,69 @@ class _ChatScreenState extends State<ChatScreen> {
     return "I'm here to listen. Would you like to tell me more?";
   }
 
-  // Function to send messages
-  void sendMessage() {
+  // Show consent dialog for potentially sensitive information
+  Future<bool> showConsentDialog(Map<String, double> detections) async {
+    return await showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('⚠️ Sensitive Information Detected'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Your message may contain:'),
+              const SizedBox(height: 10),
+              ...detections.entries.map((entry) => Text(
+                '• ${entry.key.toUpperCase()} (${(entry.value * 100).toStringAsFixed(0)}% confidence)',
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              )),
+              const SizedBox(height: 15),
+              const Text(
+                'Sharing personal information is not recommended for your safety. Do you still want to send this message?',
+                style: TextStyle(color: Colors.red),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Edit Message'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              child: const Text('Send Anyway'),
+            ),
+          ],
+        );
+      },
+    ) ?? false;
+  }
+
+  // Function to send messages with NLP checking
+  Future<void> sendMessage() async {
     String messageText = _messageController.text.trim();
 
     if (messageText.isNotEmpty && !isBlocked) {
-      if (containsPersonalInfo(messageText)) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('⚠️ Message contains personal details and cannot be sent!'),
-            backgroundColor: Colors.red,
-          ),
-        );
-        return; // Stop message from being sent
+      Map<String, double> detections = detectPersonalInfo(messageText);
+
+      if (detections.isNotEmpty) {
+        bool consent = await showConsentDialog(detections);
+        if (!consent) return;
       }
 
       setState(() {
         messages.insert(0, {'sender': widget.username, 'message': messageText});
         _messageController.clear();
 
-        // Simulate chatbot reply
         Future.delayed(const Duration(seconds: 1), () {
           if (!isBlocked) {
             setState(() {
-              messages.insert(0, {'sender': widget.strangerName, 'message': _generateAIResponse(messageText)});
+              messages.insert(0, {
+                'sender': widget.strangerName,
+                'message': getContextAwareReply(messageText, detections)
+              });
             });
           }
         });
@@ -78,7 +125,6 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
-  // Function to block user
   void blockUser() {
     setState(() {
       isBlocked = true;
